@@ -7,7 +7,7 @@ import org.apache.log4j.Logger
 import org.apache.spark.sql.{DataFrame, SaveMode}
 
 object CsvWriter {
-  case class WriterConfig(path: String, mode: SaveMode)
+  case class WriterConfig(path: String, mode: SaveMode = SaveMode.Overwrite)
 }
 
 class CsvWriter(df: DataFrame, config: CsvWriter.WriterConfig) extends Writer {

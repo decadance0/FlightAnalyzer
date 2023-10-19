@@ -33,7 +33,7 @@ trait Job {
       analysisMetadata
     )
 
-    logger.info("Job has been completed successfully")
+    logger.error("Job has been completed successfully")
 
   }
 }

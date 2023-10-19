@@ -1,6 +1,9 @@
 package com.example
 package jobs
 
+import logger.MyLogger
+import org.apache.log4j.Logger
+
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.col
 
@@ -15,7 +18,6 @@ import metrics.FlightAnalyzerJob.Top10AirlinesWoDelay
 import metrics.FlightAnalyzerJob.Top10AirlinesByAirportsOrigin
 import metrics.FlightAnalyzerJob.FlightsByWeekDay
 import metrics.FlightAnalyzerJob.CntFlightsByDelayReason
-
 
 case class FlightAnalyzerJobConfig(airlinesReaderConfig: CsvReader.ReaderConfig,
                                    airportsReaderConfig: CsvReader.ReaderConfig,
@@ -40,29 +42,22 @@ object DataFrameNames {
 class FlightAnalyzerJob(spark: SparkSession,
                         flightAnalyzerJobConfig: FlightAnalyzerJobConfig) extends Job {
 
+  private val logger: Logger = MyLogger.getLogger
+
   var analysisMetadata: AnalysisMetadata.AnalysisMetadataConfig = _
 
   override def read(): Map[String, DataFrame] = {
 
     val airlinesDF: DataFrame = ReaderFactory
-      .createReader(
-        spark,
-        flightAnalyzerJobConfig.airlinesReaderConfig
-      )
+      .createReader(spark, flightAnalyzerJobConfig.airlinesReaderConfig)
       .read()
 
     val airportsDF: DataFrame = ReaderFactory
-      .createReader(
-        spark,
-        flightAnalyzerJobConfig.airportsReaderConfig
-      )
+      .createReader(spark, flightAnalyzerJobConfig.airportsReaderConfig)
       .read()
 
     val flightsDF: DataFrame = ReaderFactory
-      .createReader(
-        spark,
-        flightAnalyzerJobConfig.flightsReaderConfig
-      )
+      .createReader(spark, flightAnalyzerJobConfig.flightsReaderConfig)
       .read()
 
     Map(
@@ -92,48 +87,44 @@ class FlightAnalyzerJob(spark: SparkSession,
       val joinCondFlightsAirlines = col(columnAirlinesCode) === col(columnIATACodeAirlines)
 
       val joinedAirportOriginDF = DataFrameTransform(flightsDF)
-        .joinDF(
-          airportsDF,
-          joinCondFlightsAirportsOrigin
-        )
-        .renameColumn(
-          columnAirportName,
-          newColumnAirportName
-        )
-        .dropColumn(
-          columnIATACode
-        )
-        .dropColumn(
-          columnOriginAirport
-        )
+        .joinDF(airportsDF, joinCondFlightsAirportsOrigin)
+        .renameColumn(columnAirportName, newColumnAirportName)
+        .dropColumn(columnIATACode)
+        .dropColumn(columnOriginAirport)
         .toDataFrame
 
       val joinedAirportDestinationDF = DataFrameTransform(joinedAirportOriginDF)
-        .joinDF(
-          airportsDF,
-          joinCondFlightsAirportsDestination
-        )
-        .renameColumn(
-          columnAirportName,
-          newColumnAirportNameDestination
-        )
-        .dropColumn(
-          columnIATACode
-        )
-        .dropColumn(
-          columnDestinationAirport
-        )
+        .joinDF(airportsDF, joinCondFlightsAirportsDestination)
+        .renameColumn(columnAirportName, newColumnAirportNameDestination)
+        .dropColumn(columnIATACode)
+        .dropColumn(columnDestinationAirport)
         .toDataFrame
 
       val joinedAirlinesDF = DataFrameTransform(joinedAirportDestinationDF)
-        .joinDF(
-          airlinesDF,
-          joinCondFlightsAirlines
-        )
+        .joinDF(airlinesDF, joinCondFlightsAirlines)
         .dropColumn(columnIATACodeAirlines)
         .toDataFrame
 
       joinedAirlinesDF
+    }
+
+    def getMinMaxDate(dateDF: DataFrame): Map[String, String] = {
+      // Получаем экстремумы дат
+      val startDate = DataFrameTransform(dateDF)
+        .getExtremumDate(
+          columnDate,
+          maxDate = false
+        )
+
+      val endDate = DataFrameTransform(dateDF)
+        .getExtremumDate(
+          columnDate
+        )
+
+      Map(
+        "startDate" -> startDate,
+        "endDate" -> endDate
+      )
     }
 
     def processing(airlinesDF: DataFrame,
@@ -155,23 +146,13 @@ class FlightAnalyzerJob(spark: SparkSession,
         )
         .toDataFrame
 
-      // Получаем экстремумы дат
-      val startDate = DataFrameTransform(addDateColumnDF)
-        .getExtremumDate(
-          columnDate,
-          maxDate = false
-        )
-
-      val endDate = DataFrameTransform(addDateColumnDF)
-        .getExtremumDate(
-          columnDate
-        )
+      val extremumDates = getMinMaxDate(addDateColumnDF)
 
       // Записываем метаданные в конфиг
       setAnalysisMetadata(
         AnalysisMetadata.AnalysisMetadataConfig(
-          startDate = startDate,
-          endDate = endDate
+          startDate = extremumDates("startDate"),
+          endDate = extremumDates("endDate")
         )
       )
 
@@ -186,7 +167,9 @@ class FlightAnalyzerJob(spark: SparkSession,
           dataMap(DataFrameNames.flights)
         )
       }
-      case _ => throw new IllegalArgumentException("Invalid data format")
+      case e: Exception =>
+        logger.error("Invalid data format:\n" + e.getMessage)
+        throw e
     }
   }
 
@@ -226,36 +209,9 @@ class FlightAnalyzerJob(spark: SparkSession,
   }
 
   override def write(metricsDFs: Map[String, DataFrame]): Unit = {
-
-    WriterFactory.createWriter(
-      metricsDFs(DataFrameNames.top10AirportsByCountFlights),
-      flightAnalyzerJobConfig.writerConfig
-    )
-      .write()
-
-    WriterFactory.createWriter(
-      metricsDFs(DataFrameNames.top10AirlinesWoDelay),
-      flightAnalyzerJobConfig.writerConfig
-    )
-      .write()
-
-    WriterFactory.createWriter(
-      metricsDFs(DataFrameNames.top10AirlinesByAirportsOrigin),
-      flightAnalyzerJobConfig.writerConfig
-    )
-      .write()
-
-    WriterFactory.createWriter(
-      metricsDFs(DataFrameNames.flightsByWeekDay),
-      flightAnalyzerJobConfig.writerConfig
-    )
-      .write()
-
-    WriterFactory.createWriter(
-      metricsDFs(DataFrameNames.cntFlightsByDelayReason),
-      flightAnalyzerJobConfig.writerConfig
-    )
-      .write()
+    // Пишем рассчитанные метрики
+    metricsDFs.foreach { case (dfName, df) =>
+      WriterFactory.createWriter(df, flightAnalyzerJobConfig.writerConfig).write()
+    }
   }
-
 }

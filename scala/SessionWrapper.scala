@@ -10,7 +10,7 @@ trait SessionWrapper {
   lazy val spark: SparkSession = SparkSession
     .builder()
     .appName(appName)
-    .master(Config.get("master"))
+//    .master(Config.get("master"))
     .getOrCreate()
 
 }

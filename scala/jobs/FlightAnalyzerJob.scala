@@ -8,11 +8,14 @@ import readers.{CsvReader, ReaderFactory}
 import writers.{ConsoleWriter, WriterFactory}
 import transformers.{DataFrameTransform, SortType}
 import schemas.FlightAnalyzerJob.SchemasFlightAnalyzer._
+import tools.AnalysisMetadata
+
 import metrics.FlightAnalyzerJob.Top10AirportsByCountFlights
 import metrics.FlightAnalyzerJob.Top10AirlinesWoDelay
 import metrics.FlightAnalyzerJob.Top10AirlinesByAirportsOrigin
 import metrics.FlightAnalyzerJob.FlightsByWeekDay
 import metrics.FlightAnalyzerJob.CntFlightsByDelayReason
+
 
 case class FlightAnalyzerJobConfig(airlinesReaderConfig: CsvReader.ReaderConfig,
                                    airportsReaderConfig: CsvReader.ReaderConfig,
@@ -36,6 +39,8 @@ object DataFrameNames {
 
 class FlightAnalyzerJob(spark: SparkSession,
                         flightAnalyzerJobConfig: FlightAnalyzerJobConfig) extends Job {
+
+  var analysisMetadata: AnalysisMetadata.AnalysisMetadataConfig = _
 
   override def read(): Map[String, DataFrame] = {
 
@@ -134,11 +139,43 @@ class FlightAnalyzerJob(spark: SparkSession,
     def processing(airlinesDF: DataFrame,
                    airportsDF: DataFrame,
                    flightsDF: DataFrame): DataFrame = {
+      // Фильтруем датафрейм
       val filteredFlightsDF = filterFlights(flightsDF)
 
+      // Соединяем все датафреймы
       val joinedDF = joinDFs(airlinesDF, airportsDF, filteredFlightsDF)
 
-      joinedDF
+      // Добавляем колонку с датой
+      val addDateColumnDF = DataFrameTransform(joinedDF)
+        .parseDate(
+          columnYear,
+          columnMonth,
+          columnDay,
+          columnDate
+        )
+        .toDataFrame
+
+      // Получаем экстремумы дат
+      val startDate = DataFrameTransform(addDateColumnDF)
+        .getExtremumDate(
+          columnDate,
+          maxDate = false
+        )
+
+      val endDate = DataFrameTransform(addDateColumnDF)
+        .getExtremumDate(
+          columnDate
+        )
+
+      // Записываем метаданные в конфиг
+      setAnalysisMetadata(
+        AnalysisMetadata.AnalysisMetadataConfig(
+          startDate = startDate,
+          endDate = endDate
+        )
+      )
+
+      addDateColumnDF
     }
 
     data match {
@@ -154,46 +191,71 @@ class FlightAnalyzerJob(spark: SparkSession,
   }
 
   override def calculate_metrics(transformedDF: DataFrame): Map[String, DataFrame] = {
-//    val top10AirportsByCountFlightsDF = Top10AirportsByCountFlights.calculate(
-//      transformedDF,
-//      flightAnalyzerJobConfig.sortMetricType
-//    )
+    val top10AirportsByCountFlightsDF = Top10AirportsByCountFlights.calculate(
+      transformedDF,
+      flightAnalyzerJobConfig.sortMetricType
+    )
 
 //    val top10AirlinesWoDelayDF = Top10AirlinesWoDelay.calculate(
 //      transformedDF,
 //      flightAnalyzerJobConfig.sortMetricType
 //    )
-
+//
 //    val top10AirlinesByAirportsOriginDF = Top10AirlinesByAirportsOrigin.calculate(
 //      transformedDF,
 //      flightAnalyzerJobConfig.sortMetricType
 //    )
-
+//
 //    val flightsByWeekDayDF = FlightsByWeekDay.calculate(
 //      transformedDF,
 //      flightAnalyzerJobConfig.sortMetricType
 //    )
-
-    val cntFlightsByDelayReasonDF = CntFlightsByDelayReason.calculate(
-      transformedDF,
-      flightAnalyzerJobConfig.sortMetricType
-    )
+//
+//    val cntFlightsByDelayReasonDF = CntFlightsByDelayReason.calculate(
+//      transformedDF,
+//      flightAnalyzerJobConfig.sortMetricType
+//    )
 
     Map(
-//      DataFrameNames.top10AirportsByCountFlights -> top10AirportsByCountFlightsDF,
+      DataFrameNames.top10AirportsByCountFlights -> top10AirportsByCountFlightsDF,
 //      DataFrameNames.top10AirlinesWoDelay -> top10AirlinesWoDelayDF,
 //      DataFrameNames.top10AirlinesByAirportsOrigin -> top10AirlinesByAirportsOriginDF,
 //      DataFrameNames.flightsByWeekDay -> flightsByWeekDayDF,
-      DataFrameNames.cntFlightsByDelayReason -> cntFlightsByDelayReasonDF
+//      DataFrameNames.cntFlightsByDelayReason -> cntFlightsByDelayReasonDF
     )
   }
 
   override def write(metricsDFs: Map[String, DataFrame]): Unit = {
+
     WriterFactory.createWriter(
-      metricsDFs(DataFrameNames.cntFlightsByDelayReason),
+      metricsDFs(DataFrameNames.top10AirportsByCountFlights),
       flightAnalyzerJobConfig.writerConfig
     )
       .write()
+
+//    WriterFactory.createWriter(
+//      metricsDFs(DataFrameNames.top10AirlinesWoDelay),
+//      flightAnalyzerJobConfig.writerConfig
+//    )
+//      .write()
+//
+//    WriterFactory.createWriter(
+//      metricsDFs(DataFrameNames.top10AirlinesByAirportsOrigin),
+//      flightAnalyzerJobConfig.writerConfig
+//    )
+//      .write()
+//
+//    WriterFactory.createWriter(
+//      metricsDFs(DataFrameNames.flightsByWeekDay),
+//      flightAnalyzerJobConfig.writerConfig
+//    )
+//      .write()
+//
+//    WriterFactory.createWriter(
+//      metricsDFs(DataFrameNames.cntFlightsByDelayReason),
+//      flightAnalyzerJobConfig.writerConfig
+//    )
+//      .write()
   }
 
 }

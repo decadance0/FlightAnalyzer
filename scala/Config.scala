@@ -17,4 +17,14 @@ object Config {
       case _ => prod(key)
     }
   }
+
+  private val path: String = "src/main/resources"
+
+  def getHomePath: String = {
+    path
+  }
+
+  def getMetaPath: String = {
+    path + "/meta"
+  }
 }

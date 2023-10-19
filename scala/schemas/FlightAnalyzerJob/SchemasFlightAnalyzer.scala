@@ -66,8 +66,12 @@ object SchemasFlightAnalyzer {
   val columnPercentOfTotal = "PERCENT_OF_TOTAL"
   val columnSum = "SUM"
   val columnCountFlights = "COUNT_FLIGHTS"
+  val columnDate = "DATE"
 
   // Используемые колонки из Flights
+  val columnYear: String = schemaFlights.head.name
+  val columnMonth: String = schemaFlights(1).name
+  val columnDay: String = schemaFlights(2).name
   val columnWeekDay: String = schemaFlights(3).name
   val columnAirlinesCode: String = schemaFlights(4).name
   val columnFlightNumber: String = schemaFlights(5).name
@@ -82,6 +86,14 @@ object SchemasFlightAnalyzer {
   val columnAirlineDelay: String = schemaFlights(28).name
   val columnLateAircraftDelay: String = schemaFlights(29).name
   val columnWeatherDelay: String = schemaFlights(30).name
+
+  val columnsDelayReason: List[String] = List(
+    columnAirSystemDelay,
+    columnSecurityDelay,
+    columnAirlineDelay,
+    columnLateAircraftDelay,
+    columnWeatherDelay
+  )
 
   // Используемые колонки из Airports
   val columnIATACode: String = schemaAirports(0).name

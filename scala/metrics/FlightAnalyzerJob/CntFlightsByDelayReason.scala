@@ -2,27 +2,42 @@ package com.example
 package metrics.FlightAnalyzerJob
 
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions.{col, count, sum, max}
+import org.apache.spark.sql.functions.{col, max, sum, when}
 import org.apache.spark.sql.expressions.Window
-
 import transformers.DataFrameTransform
 import schemas.FlightAnalyzerJob.SchemasFlightAnalyzer._
 
 object CntFlightsByDelayReason {
 
-  def meltDelayReason(df: DataFrame, delayReason: String): DataFrame = {
+  private def meltDelayReason(df: DataFrame): DataFrame = {
 
-    val filterNotZero = col(columnValue) > 0
+    def meltOneDelayReason(oneDelayReasonDF: DataFrame, delayReason: String): DataFrame = {
+      val filterNotZero = col(columnValue) > 0
 
-    DataFrameTransform(df)
-      .meltColumn(
-        columnDelayReason,
-        columnValue,
-        delayReason
+      DataFrameTransform(oneDelayReasonDF)
+        .meltColumn(
+          columnDelayReason,
+          columnValue,
+          delayReason
+        )
+        .filterByColumn(filterNotZero)
+        .selectStringColumns(List(columnDelayReason, columnValue))
+        .toDataFrame
+    }
+
+    meltOneDelayReason(df, columnAirSystemDelay)
+      .union(
+        meltOneDelayReason(df, columnSecurityDelay)
       )
-      .filterByColumn(filterNotZero)
-      .selectStringColumns(List(columnDelayReason, columnValue))
-      .toDataFrame
+      .union(
+        meltOneDelayReason(df, columnAirlineDelay)
+      )
+      .union(
+        meltOneDelayReason(df, columnLateAircraftDelay)
+      )
+      .union(
+        meltOneDelayReason(df, columnWeatherDelay)
+      )
   }
 
   def calculate(df: DataFrame,
@@ -31,55 +46,53 @@ object CntFlightsByDelayReason {
     val description =
       "Кол-во и процент времени об общих задержанных рейсов по причинам"
 
-    val columnsDelayReason: List[String] = List(
-      columnAirSystemDelay,
-      columnSecurityDelay,
-      columnAirlineDelay,
-      columnLateAircraftDelay,
-      columnWeatherDelay
-    )
-
-    val newColumnDelayReason = columnDelayReason + "_1"
-
     val conditionDelayedFlights = col(columnDelayTime) > 0
 
-    val emptyWindowSpec = Window.partitionBy()
-
-    val metricCountFlights = count(columnValue).as(columnCountFlights)
-
-    val metricPercentDelayTimeOfTotal =
-      (sum(columnValue).as(columnSumDelayTime) / max(col(columnSum)) * 100)
-        .as(columnPercentOfTotal)
-
+    // Фильтруем датафрейм
     val filteredDF = DataFrameTransform(df)
       .selectStringColumns(columnsDelayReason)
       .filterByColumn(conditionDelayedFlights)
       .toDataFrame
 
-    val meltedDF =
-      meltDelayReason(filteredDF, columnAirSystemDelay)
-        .union(
-          meltDelayReason(filteredDF, columnSecurityDelay)
-        )
-        .union(
-          meltDelayReason(filteredDF, columnAirlineDelay)
-        )
-        .union(
-          meltDelayReason(filteredDF, columnLateAircraftDelay)
-        )
-        .union(
-          meltDelayReason(filteredDF, columnWeatherDelay)
-        )
+    // Функции агрегации
+    val metricSumDelayTime = columnsDelayReason.map { colName =>
+      sum(when(col(colName) > 0, col(colName)).otherwise(0)).as(colName)
+    }
 
-    val cntFlightsByDelayReasonDF = DataFrameTransform(meltedDF)
-      .groupByColumns(
-        columnDelayReason,
-        columnValue,
-        metricCountFlights
-      )
+    val metricCntFlights = columnsDelayReason.map { colName =>
+      sum(when(col(colName) > 0, 1)).as(colName)
+    }
+
+    // Агрегируем датафреймы
+    val sumDelayTimeDF = DataFrameTransform(filteredDF)
+      .aggColumns(metricSumDelayTime)
       .toDataFrame
 
-    val percentDelayTimeOfTotalDF = DataFrameTransform(meltedDF)
+    val cntFlightsByDelayReasonDF = DataFrameTransform(filteredDF)
+      .aggColumns(metricCntFlights)
+      .toDataFrame
+
+    // Формула подсчета процента от общего времени
+    val metricPercentDelayTimeOfTotal =
+      (sum(columnValue).as(columnSumDelayTime) / max(col(columnSum)) * 100)
+        .as(columnPercentOfTotal)
+
+    // Пустая оконка
+    val emptyWindowSpec = Window.partitionBy()
+
+    // Новое имя для колонки, чтобы потом ее удалить
+    val newColumnDelayReason: String = columnDelayReason + "_1"
+
+    // Транспонируем датафреймы
+    val meltedSumDelayTimeDF = meltDelayReason(sumDelayTimeDF)
+    val meltedCntFlightsByDelayReasonDF = DataFrameTransform(
+      meltDelayReason(cntFlightsByDelayReasonDF)
+    )
+      .renameColumn(columnValue, columnCountFlights)
+      .toDataFrame
+
+    // Считаем процент от общего времени для каждого типа задержки рейса
+    val percentDelayTimeOfTotalDF = DataFrameTransform(meltedSumDelayTimeDF)
       .withColumnFillMeasure(
         columnSum,
         sum(columnValue).over(emptyWindowSpec)
@@ -95,11 +108,13 @@ object CntFlightsByDelayReason {
       )
       .toDataFrame
 
+    // Условие соединения датафреймов
     val conditionJoin =
-      cntFlightsByDelayReasonDF(columnDelayReason) ===
+      meltedCntFlightsByDelayReasonDF(columnDelayReason) ===
         percentDelayTimeOfTotalDF(newColumnDelayReason)
 
-    val joinedDF = DataFrameTransform(cntFlightsByDelayReasonDF)
+    // Соединяем два датафрейма в один
+    val joinedDF = DataFrameTransform(meltedCntFlightsByDelayReasonDF)
       .joinDF(
         percentDelayTimeOfTotalDF,
         conditionJoin

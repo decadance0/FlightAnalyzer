@@ -11,19 +11,19 @@ object FlightAnalyzer extends SessionWrapper {
 
   def main(args: Array[String]): Unit = {
 
-    val airlinesPath = "src/main/resources/src/flight_analyzer_job/airlines.csv"
-    val airportsPath = "src/main/resources/src/flight_analyzer_job/airports.csv"
-    val flightsPath = "src/main/resources/src/flight_analyzer_job/flights.csv"
+    val airlinesPath = Config.getHomePath + "/src/airlines.csv"
+    val airportsPath = Config.getHomePath + "/src/airports.csv"
+    val flightsPath = Config.getHomePath + "/src/flights.csv"
 
-//    val airlinesPath = args(0)
-//    val airportsPath = args(1)
-//    val flightsPath = args(2)
+    //    val airlinesPath = args(0)
+    //    val airportsPath = args(1)
+    //    val flightsPath = args(2)
 
     val jobFlightAnalyzer = new FlightAnalyzerJob(
       spark = spark,
       FlightAnalyzerJobConfig(
         airlinesReaderConfig = CsvReader.ReaderConfig(
-           filePath = airlinesPath,
+          filePath = airlinesPath,
           schema = schemaAirlines
         ),
         airportsReaderConfig = CsvReader.ReaderConfig(

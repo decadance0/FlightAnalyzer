@@ -1,9 +1,15 @@
 package com.example
 package jobs
 
+import com.example.tools.AnalysisMetadata
 import org.apache.spark.sql.DataFrame
 
 trait Job {
+
+  var analysisMetadata: AnalysisMetadata.AnalysisMetadataConfig
+  final def setAnalysisMetadata(metadata: AnalysisMetadata.AnalysisMetadataConfig): Unit = {
+    analysisMetadata = metadata
+  }
 
   def read(): Any
 
@@ -18,5 +24,8 @@ trait Job {
     val transformedDF = transform(data)
     val metricsDFs = calculate_metrics(transformedDF)
     write(metricsDFs)
+    AnalysisMetadata.write(
+      analysisMetadata
+    )
   }
 }

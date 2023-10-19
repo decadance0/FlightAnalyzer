@@ -18,7 +18,7 @@ object Config {
     }
   }
 
-  private val path: String = "src/main/resources"
+  private val path: String = ""
 
   def getHomePath: String = {
     path

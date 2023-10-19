@@ -1,10 +1,15 @@
 package com.example
 package jobs
 
+import com.example.logger.MyLogger
 import com.example.tools.AnalysisMetadata
+
+import org.apache.log4j.Logger
 import org.apache.spark.sql.DataFrame
 
 trait Job {
+
+  final val logger: Logger = MyLogger.getLogger
 
   var analysisMetadata: AnalysisMetadata.AnalysisMetadataConfig
   final def setAnalysisMetadata(metadata: AnalysisMetadata.AnalysisMetadataConfig): Unit = {
@@ -27,5 +32,8 @@ trait Job {
     AnalysisMetadata.write(
       analysisMetadata
     )
+
+    logger.info("Job has been completed successfully")
+
   }
 }

@@ -1,9 +1,6 @@
 package com.example
 package jobs
 
-import logger.MyLogger
-import org.apache.log4j.Logger
-
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.col
 
@@ -41,8 +38,6 @@ object DataFrameNames {
 
 class FlightAnalyzerJob(spark: SparkSession,
                         flightAnalyzerJobConfig: FlightAnalyzerJobConfig) extends Job {
-
-  private val logger: Logger = MyLogger.getLogger
 
   var analysisMetadata: AnalysisMetadata.AnalysisMetadataConfig = _
 

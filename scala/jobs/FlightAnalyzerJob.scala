@@ -196,32 +196,32 @@ class FlightAnalyzerJob(spark: SparkSession,
       flightAnalyzerJobConfig.sortMetricType
     )
 
-//    val top10AirlinesWoDelayDF = Top10AirlinesWoDelay.calculate(
-//      transformedDF,
-//      flightAnalyzerJobConfig.sortMetricType
-//    )
-//
-//    val top10AirlinesByAirportsOriginDF = Top10AirlinesByAirportsOrigin.calculate(
-//      transformedDF,
-//      flightAnalyzerJobConfig.sortMetricType
-//    )
-//
-//    val flightsByWeekDayDF = FlightsByWeekDay.calculate(
-//      transformedDF,
-//      flightAnalyzerJobConfig.sortMetricType
-//    )
-//
-//    val cntFlightsByDelayReasonDF = CntFlightsByDelayReason.calculate(
-//      transformedDF,
-//      flightAnalyzerJobConfig.sortMetricType
-//    )
+    val top10AirlinesWoDelayDF = Top10AirlinesWoDelay.calculate(
+      transformedDF,
+      flightAnalyzerJobConfig.sortMetricType
+    )
+
+    val top10AirlinesByAirportsOriginDF = Top10AirlinesByAirportsOrigin.calculate(
+      transformedDF,
+      flightAnalyzerJobConfig.sortMetricType
+    )
+
+    val flightsByWeekDayDF = FlightsByWeekDay.calculate(
+      transformedDF,
+      flightAnalyzerJobConfig.sortMetricType
+    )
+
+    val cntFlightsByDelayReasonDF = CntFlightsByDelayReason.calculate(
+      transformedDF,
+      flightAnalyzerJobConfig.sortMetricType
+    )
 
     Map(
       DataFrameNames.top10AirportsByCountFlights -> top10AirportsByCountFlightsDF,
-//      DataFrameNames.top10AirlinesWoDelay -> top10AirlinesWoDelayDF,
-//      DataFrameNames.top10AirlinesByAirportsOrigin -> top10AirlinesByAirportsOriginDF,
-//      DataFrameNames.flightsByWeekDay -> flightsByWeekDayDF,
-//      DataFrameNames.cntFlightsByDelayReason -> cntFlightsByDelayReasonDF
+      DataFrameNames.top10AirlinesWoDelay -> top10AirlinesWoDelayDF,
+      DataFrameNames.top10AirlinesByAirportsOrigin -> top10AirlinesByAirportsOriginDF,
+      DataFrameNames.flightsByWeekDay -> flightsByWeekDayDF,
+      DataFrameNames.cntFlightsByDelayReason -> cntFlightsByDelayReasonDF
     )
   }
 
@@ -233,29 +233,29 @@ class FlightAnalyzerJob(spark: SparkSession,
     )
       .write()
 
-//    WriterFactory.createWriter(
-//      metricsDFs(DataFrameNames.top10AirlinesWoDelay),
-//      flightAnalyzerJobConfig.writerConfig
-//    )
-//      .write()
-//
-//    WriterFactory.createWriter(
-//      metricsDFs(DataFrameNames.top10AirlinesByAirportsOrigin),
-//      flightAnalyzerJobConfig.writerConfig
-//    )
-//      .write()
-//
-//    WriterFactory.createWriter(
-//      metricsDFs(DataFrameNames.flightsByWeekDay),
-//      flightAnalyzerJobConfig.writerConfig
-//    )
-//      .write()
-//
-//    WriterFactory.createWriter(
-//      metricsDFs(DataFrameNames.cntFlightsByDelayReason),
-//      flightAnalyzerJobConfig.writerConfig
-//    )
-//      .write()
+    WriterFactory.createWriter(
+      metricsDFs(DataFrameNames.top10AirlinesWoDelay),
+      flightAnalyzerJobConfig.writerConfig
+    )
+      .write()
+
+    WriterFactory.createWriter(
+      metricsDFs(DataFrameNames.top10AirlinesByAirportsOrigin),
+      flightAnalyzerJobConfig.writerConfig
+    )
+      .write()
+
+    WriterFactory.createWriter(
+      metricsDFs(DataFrameNames.flightsByWeekDay),
+      flightAnalyzerJobConfig.writerConfig
+    )
+      .write()
+
+    WriterFactory.createWriter(
+      metricsDFs(DataFrameNames.cntFlightsByDelayReason),
+      flightAnalyzerJobConfig.writerConfig
+    )
+      .write()
   }
 
 }

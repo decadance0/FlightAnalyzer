@@ -19,6 +19,7 @@
   - B: Если вы компилируете проект в *.jar*
     - ...
   - C: Если вы используете уже скомпилированный проект из файла *FlightAnalyzer.jar*
+    - Скачайте его [отсюда](https://drive.google.com/file/d/1zJtOxqh1QxQdLOkmDhHF5x9AkgdhdCRS/view?usp=sharing)
     - Просто запустите его указав параметры
     ```
     spark-submit --class com.example.FlightAnalyzer --deploy-mode client --master spark://spark:7077 --verbose --supervise /путь_до_jar_файла /путь_до_airlines.csv /путь_до_airports.csv /путь_до_flights.csv

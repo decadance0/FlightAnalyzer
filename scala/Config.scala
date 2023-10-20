@@ -1,20 +1,25 @@
 package com.example
 
+import org.apache.spark.sql.SparkSession
+
 object Config {
-  private val dev: Map[String, String] = {
-    Map("master" -> "local")
+  private val dev: SparkSession.Builder = {
+    SparkSession
+      .builder()
+      .master("local")
   }
 
-  private val prod: Map[String, String] = {
-    Map("master" -> "spark://a32643e80e6f:7077")
+  private val prod: SparkSession.Builder = {
+    SparkSession
+      .builder()
   }
 
   private val environment = sys.env.getOrElse("PROJECT_ENV", "prod")
 
-  def get(key: String): String = {
+  def getSparkSession: SparkSession.Builder = {
     environment match {
-      case "dev" => dev(key)
-      case _ => prod(key)
+      case "dev" => dev
+      case _ => prod
     }
   }
 
